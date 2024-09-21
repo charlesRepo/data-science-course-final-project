@@ -1,0 +1,6 @@
+pip install -U sentence-transformers
+pip install scikit-learn
+pip install nltk
+pip install tensorflow
+pip install tf-keras
+pip instal matplotlib
