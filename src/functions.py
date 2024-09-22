@@ -28,7 +28,7 @@ def add_growth_score_based_on_main_features(df, train=True):
     pd.DataFrame: The dataframe with the new 'growth_score' column added.
     """
 
-    feature_columns = ['num_stars', 'num_forks', 'num_pull_requests', 'num_releases']
+    feature_columns = ['num_stars', 'num_forks', 'num_watcher', 'num_pull_requests', 'num_releases']
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_file_path = os.path.join(current_dir, '../models/growth_score_training_scaler.pkl')
     scaler_path = os.path.abspath(data_file_path)
@@ -112,7 +112,7 @@ def add_lag_features_based_on_target(df, num = 4):
 
 
 def remove_unwanted_features(df):
-    return df.drop(columns=['growth_score', 'org_name', 'repo_name', 'description', 'repo_url', 'tag_name', 'update_date'])
+    return df.drop(columns=['growth_score', 'org_name', 'repo_name', 'description', 'repo_url', 'release_tag', 'update_date'])
 
 
 def scale_final_data(X_train=None, X_test=None, X=None, scaler_path='../models/final_input_scaler.pkl'):
@@ -309,26 +309,25 @@ def plot_historical_and_forecasted_growth(test_df, forecasted_values, n_forecast
     st.pyplot(fig)
 
 
-def get_repo_data(url):
+def get_single_repo_data(url):
     org_name, repo_name = get_org_and_repo_from_url(url)
-    token = 'ghp_***'
+    token = '***'
     headers = {}
+    headers['Accept'] = 'application/vnd.github.v3.star+json'
     if token:
         headers['Authorization'] = f'token {token}'
-
+        
     repo_api = f'https://api.github.com/repos/{org_name}/{repo_name}'
     response = requests.get(repo_api, headers=headers)
     
     if response.status_code == 200:
         repo_object = response.json()
-        filtered_data = fetch_repo(org_name, repo_object, headers)
+        filtered_data = fetch_repo_data(org_name, repo_object, headers)
         return pd.DataFrame(filtered_data)
         
     else:
         print(f"Error {response.status_code}: {response.text}")
         return None
-
-
 
 
 def get_org_and_repo_from_url(url):
@@ -349,114 +348,51 @@ def get_org_and_repo_from_url(url):
         raise ValueError("Invalid GitHub URL format")
 
 
-def fetch_stargazers_with_dates(org_name, repo_name, headers):
+
+def convert_to_naive_or_aware(df, column, make_naive=True):
     """
-    Fetches stargazer data for a repository, including the date each star was given.
+    Converts a datetime column to be either tz-naive or tz-aware.
+
+    Parameters:
+    df (pd.DataFrame): The dataframe containing the datetime column.
+    column (str): The name of the column to convert.
+    make_naive (bool): If True, converts to tz-naive. If False, converts to tz-aware (UTC).
+
+    Returns:
+    pd.DataFrame: Dataframe with the updated datetime column.
     """
-    url = f'https://api.github.com/repos/{org_name}/{repo_name}/stargazers'
-    params = {'per_page': 100, 'page': 1}
-    stars_data = []
+    if make_naive:
+        df[column] = df[column].apply(lambda x: x.tz_localize(None) if pd.notna(x) and x.tzinfo is not None else x)
+    else:
+        df[column] = df[column].apply(lambda x: x.tz_localize('UTC') if pd.notna(x) and x.tzinfo is None else x)
+    return df
 
-    while True:
-        response = requests.get(url, headers=headers, params=params)
-        if response.status_code == 200:
-            stars = response.json()
-            if not stars:
-                break
 
-            # Extract the date each star was added
-            for star in stars:
-                stars_data.append(star['starred_at'])
-            params['page'] += 1
-        else:
-            print(f"Failed to fetch stargazers: {response.status_code}")
-            break
-    
-    # Convert to DataFrame
-    stars_df = pd.DataFrame({'date': pd.to_datetime(stars_data)})
-    stars_df['num_stars'] = 1  # Each row represents a single star
-    return stars_df
 
-def fetch_fork_events_with_dates(org_name, repo_name, headers):
-    """
-    Fetches fork events for a repository, including the date each fork was created.
-    """
-    url = f'https://api.github.com/repos/{org_name}/{repo_name}/events'
-    params = {'per_page': 100, 'page': 1}
-    fork_data = []
-
-    while True:
-        response = requests.get(url, headers=headers, params=params)
-        if response.status_code == 200:
-            events = response.json()
-            if not events:
-                break
-
-            # Extract the date each fork was created
-            for event in events:
-                if event['type'] == 'ForkEvent':
-                    fork_data.append(event['created_at'])
-
-            params['page'] += 1
-        else:
-            print(f"Failed to fetch fork events: {response.status_code}")
-            break
-    
-    # Convert to DataFrame
-    forks_df = pd.DataFrame({'date': pd.to_datetime(fork_data)})
-    forks_df['num_forks'] = 1  # Each row represents a single fork
-    return forks_df
-
-def fetch_repo(org_name, repo_object, headers):
-    
-    # Define the search query for pull requests
+def fetch_repo_data(org_name, repo_object, headers):
     repo_name = repo_object['name']
     pr_query = f'type:pr repo:{org_name}/{repo_name}'
-    pr_params = {
-        'q': pr_query,
-        'per_page': 1  # We only need the count, so limit to 1 result
-    }
+    pr_params = {'q': pr_query, 'per_page': 1}
 
     issues_url = 'https://api.github.com/search/issues'
     pr_response = requests.get(issues_url, headers=headers, params=pr_params)
     
-    # Get the number of pull requests
     if pr_response.status_code == 200:
         num_pulls = pr_response.json().get('total_count', 0)
     else:
         print(f"Error fetching pull requests: {pr_response.status_code} - {pr_response.text}")
-        num_pulls = None  # Handle error by setting a default value
+        num_pulls = None
 
-    # Fetch release dates using the get_release_dates function
-    release_date, tag_name = get_release_dates(headers, org_name, repo_name)
-
-    # Fetch labels using the get_labels function
+    release_date, release_tag = get_release_dates(headers, org_name, repo_name)
     topics = get_topics(headers, org_name, repo_name)
 
-    # Fetch cumulative stars and forks
-    stars_df = fetch_stargazers_with_dates(org_name, repo_name, headers)
-    forks_df = fetch_fork_events_with_dates(org_name, repo_name, headers)
+    
+    num_releases = len(release_date)
+    num_stars = repo_object['stargazers_count']
+    num_forks = repo_object['forks_count']
+    num_watchers = repo_object['watchers_count']
 
-    # Combine star and fork data into a single DataFrame
-    combined_df = pd.concat([
-        stars_df.set_index('date').resample('D').sum(),
-        forks_df.set_index('date').resample('D').sum()
-    ], axis=1).fillna(0)
 
-    # Accumulate the values over time
-    combined_df['num_stars_cumulative'] = combined_df['num_stars'].cumsum()
-    combined_df['num_forks_cumulative'] = combined_df['num_forks'].cumsum()
-
-    # Get the latest cumulative values
-    if not combined_df.empty:
-        latest_cumulative_stars = combined_df['num_stars_cumulative'].iloc[-1]
-        latest_cumulative_forks = combined_df['num_forks_cumulative'].iloc[-1]
-    else:
-        # Handle empty dataframes
-        latest_cumulative_stars = 0
-        latest_cumulative_forks = 0
-
-    # Append the repo data with the number of pull requests and release dates
     repo_data = {
         'org_name': org_name,
         'repo_name': repo_name,
@@ -465,47 +401,42 @@ def fetch_repo(org_name, repo_object, headers):
         'topics': topics,
         'creation_date': repo_object['created_at'],
         'update_date': repo_object['updated_at'],
+        'release_tag': release_tag,
         'release_date': release_date,
-        'tag_name' : tag_name,
-        'num_releases': len(release_date),
-        'num_stars': latest_cumulative_stars,
-        'num_forks': latest_cumulative_forks,
+        'num_releases': num_releases,
         'num_open_issues': repo_object['open_issues_count'],
-        'num_pull_requests': num_pulls
+        'num_pull_requests': num_pulls,
+        'num_stars': num_stars,
+        'num_forks': num_forks,
+        'num_watchers': num_watchers
     }
     return repo_data
     
 
-
+import time
 def fetch_github_data(headers, query, pages=1, per_page=50):
     data = []
     repos_url = 'https://api.github.com/search/repositories'
-    
+    params = {'q': query, 'sort': 'stars', 'order': 'desc', 'per_page': per_page, 'page': pages}
 
-    params = {
-        'q': query,
-        'sort': 'stars',
-        'order': 'desc',
-        'per_page': per_page,
-        'page': pages
-    }
-    
     response = requests.get(repos_url, headers=headers, params=params)
 
-    # Check if the request was successful
     if response.status_code == 200:
-        # Parse the response JSON
         repos = response.json().get('items', [])
         
-        for repo in repos:
-            # Get the organization name and repo name
+        for i, repo in enumerate(repos):
             org_name = repo['full_name'].split('/')[0]
-            repo_data = fetch_repo(org_name, repo, headers)
+            repo_data = fetch_repo_data(org_name, repo, headers)
             data.append(repo_data)
+            print(f"Fetched {i + 1} repositories")
+            
+            # Add a small delay to prevent hitting the API rate limit
+            time.sleep(1)
     else:
         print(f"Error: {response.status_code} - {response.text}")
     
     return data
+
 
 
 def get_release_dates(headers, owner, repo):
@@ -513,15 +444,17 @@ def get_release_dates(headers, owner, repo):
     release_url = 'https://api.github.com/repos/{owner}/{repo}/releases'
     url = release_url.format(owner=owner, repo=repo)
     response = requests.get(url, headers=headers)
-    
+
     if response.status_code == 200:
         releases = response.json()
         release_date = [release['published_at'] for release in releases]
-        tag_name = [release['tag_name'] for release in releases]
-        return release_date, tag_name
+        release_tag = [release['tag_name'] for release in releases]
+        return release_date, release_tag
     else:
         print(f"Error fetching releases for {owner}/{repo}: {response.status_code} - {response.text}")
         return []
+
+
     
 def get_topics(headers, owner, repo):
     """Fetch topics for a specific repository."""

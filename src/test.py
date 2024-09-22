@@ -18,7 +18,7 @@ from functions import scale_final_data, remove_outliers
 from functions import reduce_dimentionality_pca
 from functions import forecast_growth
 from functions import plot_historical_and_forecasted_growth
-from functions import get_repo_data
+from functions import get_single_repo_data
 from functions import remove_unwanted_features
 
 from tensorflow.keras.models import load_model
@@ -36,7 +36,7 @@ ok = st.button("Check Repo")
 if ok and url:
     st.write(f"Processing the URL: {url}")
     #'https://github.com/Significant-Gravitas/AutoGPT'
-    test_df = get_repo_data(url)
+    test_df = get_single_repo_data(url)
     test_df = add_growth_score_based_on_main_features(test_df, train=False)
     actual_growth_score = test_df['growth_score']
 
