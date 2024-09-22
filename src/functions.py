@@ -9,6 +9,12 @@ import os
 import matplotlib.pyplot as plt
 import streamlit as st
 import requests
+import sys
+
+root_dir = os.path.abspath(os.path.join(os.getcwd(), '..'))
+sys.path.append(root_dir)
+
+from config import GITHUB_TOKEN
 
 
 
@@ -28,7 +34,7 @@ def add_growth_score_based_on_main_features(df, train=True):
     pd.DataFrame: The dataframe with the new 'growth_score' column added.
     """
 
-    feature_columns = ['num_stars', 'num_forks', 'num_watcher', 'num_pull_requests', 'num_releases']
+    feature_columns = ['num_stars', 'num_forks', 'num_watchers', 'num_pull_requests', 'num_releases', 'num_open_issues']
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_file_path = os.path.join(current_dir, '../models/growth_score_training_scaler.pkl')
     scaler_path = os.path.abspath(data_file_path)
@@ -311,7 +317,7 @@ def plot_historical_and_forecasted_growth(test_df, forecasted_values, n_forecast
 
 def get_single_repo_data(url):
     org_name, repo_name = get_org_and_repo_from_url(url)
-    token = '***'
+    token = GITHUB_TOKEN
     headers = {}
     headers['Accept'] = 'application/vnd.github.v3.star+json'
     if token:
