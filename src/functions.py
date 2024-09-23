@@ -13,9 +13,113 @@ import sys
 
 root_dir = os.path.abspath(os.path.join(os.getcwd(), '..'))
 sys.path.append(root_dir)
-
 from config import GITHUB_TOKEN
 
+
+def distribute_values_across_releases(release_dates, total_value):
+    """
+    Distribute the total value across release dates in an increasing manner.
+    Starts from 0 and increments up to the total_value.
+    """
+    n_releases = len(release_dates)
+    step = total_value / (n_releases - 1) if n_releases > 1 else total_value
+
+    # Create the values starting from 0 and incrementing by the calculated step
+    values = [round(step * i) for i in range(n_releases)]
+    values[-1] = total_value  # Ensure the last value matches the total count
+    return values
+
+def distribute_features_across_releases(df, features):
+    """
+    Distribute specified feature values across release dates for each repository.
+
+    Parameters:
+    df (pd.DataFrame): The input DataFrame with release dates and feature columns.
+    features (list): List of feature column names to be distributed.
+
+    Returns:
+    pd.DataFrame: The DataFrame with distributed feature values.
+    """
+    for repo_index, repo_group in df.groupby(['org_name', 'repo_name']):
+        # Get release dates for the current repository
+        release_dates = repo_group['release_date']
+        
+        # Distribute each feature column across the release dates
+        for feature in features:
+            total_value = repo_group[feature].iloc[0]  # Get the total value for the feature
+            distributed_values = distribute_values_across_releases(release_dates, total_value)  # Distribute the values
+            df.loc[release_dates.index, feature] = distributed_values  # Update the DataFrame with distributed values
+    
+    return df
+
+
+
+def add_time_based_noise(series, factor=0.02, seed=None):
+    """
+    Adds time-based noise to a series to simulate temporal variations.
+    """
+    if seed is not None:
+        np.random.seed(seed)
+    # Simulate time-based noise as a sine wave with added random noise
+    time = np.arange(len(series))
+    temporal_variation = np.sin(time / 5)  # You can adjust the period
+    random_noise = np.random.normal(loc=0, scale=factor, size=len(series))
+    
+    time_noise = temporal_variation + random_noise
+    return series + series.mean() * time_noise
+
+def apply_time_based_noise(df, features):
+    """
+    Apply time-based noise to specified feature columns in a DataFrame.
+
+    Parameters:
+    df (pd.DataFrame): The input DataFrame containing the features.
+    features (list): List of feature column names to which noise should be applied.
+
+    Returns:
+    pd.DataFrame: The DataFrame with noise added to the specified features.
+    """
+    for feature in features:
+        df[feature] = add_time_based_noise(df[feature])
+    return df
+
+
+def add_proportional_noise(series, factor=0.05, seed=None, min_value=1):
+    """
+    Adds proportional noise to a series, ensuring no negative values.
+    """
+    if seed is not None:
+        np.random.seed(seed)
+    noise = np.random.normal(loc=0, scale=1, size=len(series))
+    noisy_series = series * (1 + factor * noise)
+    
+    # Ensure values are not below the specified minimum value
+    noisy_series = np.maximum(noisy_series.round().astype(int), min_value)
+
+    return noisy_series
+
+def apply_proportional_noise(df, features):
+    """
+    Apply proportional noise to specified feature columns in a DataFrame.
+
+    Parameters:
+    df (pd.DataFrame): The input DataFrame containing the features.
+    features (list): List of feature column names to which noise should be applied.
+
+    Returns:
+    pd.DataFrame: The DataFrame with proportional noise added to the specified features.
+    """
+    for feature in features:
+        df[feature] = add_proportional_noise(df[feature])
+    return df
+
+
+def remove_first_augmented_rows(df):
+    # Remove rows where the initial value is zero
+    df = df[df['num_releases'] != 0]
+    # Reset the index after filtering
+    df.reset_index(drop=True, inplace=True)
+    return df
 
 
 
@@ -248,21 +352,23 @@ def forecast_growth(model, initial_data, n_steps, scaler, timesteps=5, n_feature
         # Predict the next step (3D output)
         next_pred_scaled = model.predict(input_seq_reshaped)
 
-        # Inverse transform the prediction to original scale (2D output)
+        # Reshape to 2D for inverse transform, if necessary
+        if next_pred_scaled.ndim == 1:
+            next_pred_scaled = next_pred_scaled.reshape(1, -1)
+        
+        # Inverse transform the prediction to original scale
         next_pred = scaler.inverse_transform(next_pred_scaled)
 
         # Append the forecasted value
         forecasted_values.append(next_pred[0, 0])  # Append the forecasted value
 
-        # Create a new input sequence with the predicted value as the last feature
-        next_input = np.zeros((1, n_features))  # Initialize an array with the same number of features as input_seq
-        
-        # Assign the predicted value to the relevant feature
-        next_input[0, -1] = next_pred[0, 0]  # Assuming growth score is the last feature
-        
+        # Create a new input sequence with the predicted value
+        next_input = input_seq[-1].copy()  # Copy last row of input sequence
+        next_input[-1] = next_pred[0, 0]  # Assuming growth score is the last feature
+
         # Update the input sequence by shifting and appending the new prediction
-        input_seq = np.vstack([input_seq[1:], next_input])  # Shift and append
-    
+        input_seq = np.concatenate([input_seq[1:], next_input.reshape(1, -1)], axis=0)  # Shift and append
+
     return np.array(forecasted_values)
     
 
@@ -315,9 +421,8 @@ def plot_historical_and_forecasted_growth(test_df, forecasted_values, n_forecast
     st.pyplot(fig)
 
 
-def get_single_repo_data(url):
+def get_single_repo_data(url, token):
     org_name, repo_name = get_org_and_repo_from_url(url)
-    token = GITHUB_TOKEN
     headers = {}
     headers['Accept'] = 'application/vnd.github.v3.star+json'
     if token:
