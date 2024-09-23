@@ -1,19 +1,11 @@
 # CLI command: python3 -m streamlit run ./src/test.py
 import streamlit as st # pip install streamlit
 import numpy as np
-import sys
 import os
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
 import joblib
 
-root_dir = os.path.abspath(os.path.join(os.getcwd(), '..'))
-sys.path.append(root_dir)
-from config import GITHUB_TOKEN
-
-module_path = os.path.abspath(os.path.join('..', 'src'))
-if module_path not in sys.path:
-    sys.path.append(module_path)
 
 from functions import add_growth_score_based_on_main_features 
 from functions import add_repo_age_days_col
@@ -42,7 +34,7 @@ ok = st.button("Check Repo")
 if ok and url:
     st.write(f"Processing the URL: {url}")
     #'https://github.com/Significant-Gravitas/AutoGPT'
-    test_df = get_single_repo_data(url, GITHUB_TOKEN)
+    test_df = get_single_repo_data(url, st.secrets.GITHUB_TOKEN)
     test_df = test_df.sort_values(by='release_date', ascending=True).reset_index(drop=True)
     test_df = distribute_features_across_releases(test_df, ['num_stars', 'num_forks', 'num_watchers', 'num_pull_requests', 'num_open_issues', 'num_releases'])
     test_df = apply_time_based_noise(test_df, ['num_stars', 'num_forks', 'num_watchers', 'num_pull_requests', 'num_open_issues'])
