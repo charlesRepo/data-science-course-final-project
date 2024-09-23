@@ -9,11 +9,6 @@ import os
 import matplotlib.pyplot as plt
 import streamlit as st
 import requests
-import sys
-
-root_dir = os.path.abspath(os.path.join(os.getcwd(), '..'))
-sys.path.append(root_dir)
-from config import GITHUB_TOKEN
 
 
 def distribute_values_across_releases(release_dates, total_value):

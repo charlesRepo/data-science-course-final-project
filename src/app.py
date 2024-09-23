@@ -1,13 +1,20 @@
 # CLI command: python3 -m streamlit run ./src/test.py
 import streamlit as st # pip install streamlit
-import pandas as pd
 import numpy as np
 import sys
 import os
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
+import joblib
+
+root_dir = os.path.abspath(os.path.join(os.getcwd(), '..'))
+sys.path.append(root_dir)
+from config import GITHUB_TOKEN
 
 module_path = os.path.abspath(os.path.join('..', 'src'))
 if module_path not in sys.path:
     sys.path.append(module_path)
+
 from functions import add_growth_score_based_on_main_features 
 from functions import add_repo_age_days_col
 from functions import add_days_since_last_release_col
@@ -24,15 +31,6 @@ from functions import distribute_features_across_releases
 from functions import apply_time_based_noise
 from functions import apply_proportional_noise
 from functions import remove_first_augmented_rows
-
-from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
-import joblib
-import matplotlib.pyplot as plt
-
-root_dir = os.path.abspath(os.path.join(os.getcwd(), '..'))
-sys.path.append(root_dir)
-from config import GITHUB_TOKEN
 
 
 st.subheader(f'Ai Repos Growth')
