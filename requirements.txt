@@ -16,6 +16,7 @@ pandas==2.2.1
 pickle-mixin==1.0.2
 streamlit==1.32.0
 streamlit-option-menu==0.3.2
-scikit-learn==1.2.2
+Cython==0.29.36
+scikit-learn==0.23 --no-build-isolation
 matplotlib==3.8.4
-Cython==3.0.11
+
