@@ -302,7 +302,7 @@ def reshape_for_lstm(X, y=None, n_timesteps=5):
 
 
 def detect_outliers_z_score(df, column):
-    threshold = 2.5
+    threshold = 3
     mean = np.mean(df[column])
     std = np.std(df[column])
     z_scores = (df[column] - mean) / std
@@ -347,23 +347,23 @@ def forecast_growth(model, initial_data, n_steps, scaler, timesteps=5, n_feature
         # Predict the next step (3D output)
         next_pred_scaled = model.predict(input_seq_reshaped)
 
-        # Reshape to 2D for inverse transform, if necessary
-        if next_pred_scaled.ndim == 1:
-            next_pred_scaled = next_pred_scaled.reshape(1, -1)
-        
-        # Inverse transform the prediction to original scale
+        # For LSTM model with return_sequences=True
+        # next_pred_scaled_2d = next_pred_scaled[:, -1, :] # transform to 2D array
+        # next_pred = scaler.inverse_transform(next_pred_scaled_2d)
+
+        # For GRU and LSTM model with return_sequences=False
         next_pred = scaler.inverse_transform(next_pred_scaled)
 
         # Append the forecasted value
-        forecasted_values.append(next_pred[0, 0])  # Append the forecasted value
-
-        # Create a new input sequence with the predicted value
+        forecasted_values.append(next_pred[0, 0])  # Assuming growth score is the first feature
+        
+        # # Create a new input sequence with the predicted value
         next_input = input_seq[-1].copy()  # Copy last row of input sequence
-        next_input[-1] = next_pred[0, 0]  # Assuming growth score is the last feature
+        next_input[-1] = next_pred[0, 0] 
 
-        # Update the input sequence by shifting and appending the new prediction
+        # # Update the input sequence by shifting and appending the new prediction
         input_seq = np.concatenate([input_seq[1:], next_input.reshape(1, -1)], axis=0)  # Shift and append
-
+    
     return np.array(forecasted_values)
     
 

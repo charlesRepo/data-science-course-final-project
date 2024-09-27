@@ -242,25 +242,24 @@ def forecast_growth(model, initial_data, n_steps, scaler, timesteps=5, n_feature
         # Predict the next step (3D output)
         next_pred_scaled = model.predict(input_seq_reshaped)
 
-        # Inverse transform the prediction to original scale (2D output)
-        next_pred = scaler.inverse_transform(next_pred_scaled)
+
+        # Inverse transform the prediction to original scale
+        next_pred_original = scaler.inverse_transform(next_pred_scaled)[0, 0]
 
         # Append the forecasted value
-        forecasted_values.append(next_pred[0, 0])  # Append the forecasted value
+        forecasted_values.append(next_pred_original)  # Assuming growth score is the first feature
+        
+        # # Create a new input sequence with the predicted value
+        next_input = input_seq[-1].copy()  # Copy last row of input sequence
+        next_input[-1] = next_pred_scaled[0, 0]  # Assuming growth score is the last feature
 
-        # Create a new input sequence with the predicted value as the last feature
-        next_input = np.zeros((1, n_features))  # Initialize an array with the same number of features as input_seq
-        
-        # Assign the predicted value to the relevant feature
-        next_input[0, -1] = next_pred[0, 0]  # Assuming growth score is the last feature
-        
-        # Update the input sequence by shifting and appending the new prediction
-        input_seq = np.vstack([input_seq[1:], next_input])  # Shift and append
+        # # Update the input sequence by shifting and appending the new prediction
+        input_seq = np.concatenate([input_seq[1:], next_input.reshape(1, -1)], axis=0)  # Shift and append
     
     return np.array(forecasted_values)
     
 
-def plot_historical_and_forecasted_growth(test_df, forecasted_values, n_forecast_steps, freq='M'):
+def plot_historical_and_forecasted_growth(df, forecasted_values, n_forecast_steps, freq='M'):
     """
     Plots historical and forecasted growth scores.
 
@@ -273,36 +272,20 @@ def plot_historical_and_forecasted_growth(test_df, forecasted_values, n_forecast
     Returns:
     - None
     """
-    # Ensure the index is in datetime format (if not already)
-    test_df.index = pd.to_datetime(test_df.index)
 
-    # Historical data: Plot the actual release dates with the growth score
-    historical_growth = test_df['growth_score']
-
-    # Generate future dates for the forecasted values based on the release_date index
-    # If you are forecasting 'n_steps' into the future (assuming monthly intervals)
-    forecasted_dates = pd.date_range(start=test_df.index[-1], periods=n_forecast_steps + 1, freq='M')[1:]
+    df.index = pd.to_datetime(df.index) # Ensure the index is in datetime format 
+    historical_growth = df['growth_score']
+    forecasted_dates = pd.date_range(start=df.index[-1], periods=n_forecast_steps + 1, freq='M')[1:]
 
     st.title("Historical and Forecasted Growth Score")
-
-    # Create a figure and axis with Matplotlib
+    
     fig, ax = plt.subplots(figsize=(10, 6))
-
-    # Plot historical data
-    ax.plot(test_df.index, historical_growth, label='Historical Growth', color='blue')
-
-    # Plot forecasted data
+    ax.plot(df.index, historical_growth, label='Historical Growth', color='blue')
     ax.plot(forecasted_dates, forecasted_values, label='Forecasted Growth', color='orange', linestyle='--')
-
-    # Add labels and title
     ax.set_xlabel('Release Date')
     ax.set_ylabel('Growth Score')
     ax.set_title('Historical and Forecasted Growth Score')
-
-    # Add legend
     ax.legend()
-
-    # Rotate x-axis labels
     plt.xticks(rotation=45)
 
     # Use Streamlit to display the Matplotlib figure
