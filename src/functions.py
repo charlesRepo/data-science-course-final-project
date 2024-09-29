@@ -359,6 +359,9 @@ def add_lag_features_based_on_target(df, num = 4):
         # Create a lagged version of the 'growth_score' column with a lag of 'i' and name it accordingly
         df[f'growth_score_lag_{i}'] = df['growth_score'].shift(i)
 
+    # Apply log transformation to the 'growth_score' column to reduce skewness, by reducing outliers and improving residuals.
+    # df['growth_score'] = np.log1p(df['growth_score'])
+
     # Remove rows with NaN values, which are introduced by the shift operation
     df = df.dropna()
     return df
@@ -816,10 +819,20 @@ def get_repo_data(url):
         message_placeholder.empty()
 
     test_df = get_single_repo_data(url, st.secrets.GITHUB_TOKEN)
+    test_df['release_date'] = pd.to_datetime(test_df['release_date'])
+    latest_release_year = test_df['release_date'].max().year
 
     if (test_df['num_releases'] <= 12).any() or test_df.empty:
         st.warning('Please provide a link to a repository which has more than 12 releases.')
+        return None, None, None, None 
+    elif latest_release_year < 2024 :
+        st.warning('Please provide a link to a repository with up-to-date releases later thatn 2023.')
+        return None, None, None, None 
     else:
+        n_lag_features = 4
+        n_timesteps = 3
+        n_forecast_steps = 12 
+
         test_df = test_df.sort_values(by='release_date', ascending=True).reset_index(drop=True)
         test_df = distribute_features_across_releases(test_df, ['num_stars', 'num_forks', 'num_watchers', 'num_pull_requests', 'num_open_issues', 'num_releases'])
         test_df = remove_first_augmented_rows(test_df)
@@ -831,14 +844,14 @@ def get_repo_data(url):
         test_df = convert_topics_to_embeddings(test_df)
         test_df = remove_outliers(test_df)
         test_df = indexify_release_dates(test_df)
-        test_df = add_lag_features_based_on_target(test_df, num=5)
+        test_df = add_lag_features_based_on_target(test_df, num=n_lag_features)
         X = remove_unwanted_features(test_df)
         test_df_scaled = scale_final_data(X=X.values)
         test_df_scaled_pca = reduce_dimentionality_pca(test_df_scaled)
 
+        # Define the number of features
         n_features = test_df_scaled_pca.shape[1] 
-        n_timesteps = 6
-        n_forecast_steps = 12 
+        
 
         test_generator = TimeseriesGenerator(test_df_scaled_pca, np.zeros(len(test_df_scaled_pca)), length=n_timesteps, batch_size=1)
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -867,6 +880,9 @@ def get_repo_data(url):
 
 def display_repo_data(test_df, y_pred, forecasted_values, n_forecast_steps):
 
+    if test_df is None or y_pred is None or forecasted_values is None or n_forecast_steps is None:
+        return  # Exit the function early if any input is None
+    
     st.subheader('Repository info')
     st.write('Organization name: ', test_df.iloc[0]['org_name'])
     st.write('Repo name: ', test_df.iloc[0]['repo_name'])
