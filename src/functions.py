@@ -17,8 +17,6 @@ import time
 
 
 
-
-
 def distribute_values_across_releases(release_dates, total_value):
     """
     Distribute the total value across release dates in an increasing manner.
