@@ -561,7 +561,7 @@ def plot_historical_and_forecasted_growth(test_df, forecasted_values, n_forecast
     # If you are forecasting 'n_steps' into the future (assuming monthly intervals)
     forecasted_dates = pd.date_range(start=test_df.index[-1], periods=n_forecast_steps + 1, freq='M')[1:]
 
-    st.title("Historical and Forecasted Growth Score")
+    st.header("Historical and Forecasted Growth Score")
 
     # Create a figure and axis with Matplotlib
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -801,6 +801,7 @@ def get_topics(headers, owner, repo):
     
 
 
+
 # Main App Functions 
 
 def get_repo_data(url):
@@ -809,7 +810,6 @@ def get_repo_data(url):
     #'https://github.com/Significant-Gravitas/AutoGPT'
     with st.spinner(text='In progress'):
         time.sleep(3)
-
         message_placeholder = st.empty()
         message_placeholder.success("Repo's data fetched!")
         time.sleep(3)
@@ -818,7 +818,6 @@ def get_repo_data(url):
     test_df = get_single_repo_data(url, st.secrets.GITHUB_TOKEN)
 
     if (test_df['num_releases'] <= 12).any() or test_df.empty:
-    # Do something, like returning or filtering the DataFrame
         st.warning('Please provide a link to a repository which has more than 12 releases.')
     else:
         test_df = test_df.sort_values(by='release_date', ascending=True).reset_index(drop=True)
@@ -875,27 +874,42 @@ def display_repo_data(test_df, y_pred, forecasted_values, n_forecast_steps):
 
     df_num_stars_sorted = test_df.sort_values(by=['repo_name', 'num_stars'], ascending=[True, True])
     last_rows_num_stars = df_num_stars_sorted.drop_duplicates(subset='repo_name', keep='last')
-    st.write('Stars: ', last_rows_num_stars.iloc[0]['num_stars'])
+    
 
     df_num_forks_sorted = test_df.sort_values(by=['repo_name', 'num_forks'], ascending=[True, True])
     last_rows_num_forks = df_num_forks_sorted.drop_duplicates(subset='repo_name', keep='last')
-    st.write('Forks: ', last_rows_num_forks.iloc[0]['num_forks'])
+    
 
     df_num_watchers_sorted = test_df.sort_values(by=['repo_name', 'num_watchers'], ascending=[True, True])
     last_rows_num_watchers = df_num_watchers_sorted.drop_duplicates(subset='repo_name', keep='last')
-    st.write('Watchers: ', last_rows_num_watchers.iloc[0]['num_watchers'])
+    
 
     df_num_prs_sorted = test_df.sort_values(by=['repo_name', 'num_pull_requests'], ascending=[True, True])
     last_rows_num_prs = df_num_prs_sorted.drop_duplicates(subset='repo_name', keep='last')
-    st.write('Pull Requests: ', last_rows_num_prs.iloc[0]['num_pull_requests'])
+    
 
     df_num_oprs_sorted = test_df.sort_values(by=['repo_name', 'num_open_issues'], ascending=[True, True])
     last_rows_num_oprs = df_num_oprs_sorted.drop_duplicates(subset='repo_name', keep='last')
-    st.write('Open Pull Requests: ', last_rows_num_oprs.iloc[0]['num_open_issues'])
+    
 
     df_num_releases_sorted = test_df.sort_values(by=['repo_name', 'num_releases'], ascending=[True, True])
     last_rows_num_releases = df_num_releases_sorted.drop_duplicates(subset='repo_name', keep='last')
-    st.write('Number of Releases: ', last_rows_num_releases.iloc[0]['num_releases'])
+    
+
+    data_info = {
+    'Metric': ['Stars', 'Forks', 'Watchers', 'Pull Requests', 'Open Pull Requests', 'Number of Releases'],
+    'Value': [
+        last_rows_num_stars.iloc[0]['num_stars'],
+        last_rows_num_forks.iloc[0]['num_forks'],
+        last_rows_num_watchers.iloc[0]['num_watchers'],
+        last_rows_num_prs.iloc[0]['num_pull_requests'],
+        last_rows_num_oprs.iloc[0]['num_open_issues'],
+        last_rows_num_releases.iloc[0]['num_releases']
+        ]
+    }   
+    df_info = pd.DataFrame(data_info)
+    st.table(df_info)
+
 
     df_num_gs_sorted = test_df.sort_values(by=['repo_name', 'growth_score'], ascending=[True, True])
     last_rows_num_gs = df_num_gs_sorted.drop_duplicates(subset='repo_name', keep='last')
@@ -907,12 +921,12 @@ def display_repo_data(test_df, y_pred, forecasted_values, n_forecast_steps):
 
 
     prediction_diff = y_pred[0][0] - actual_growth_score
-    data = {
+    data_pred = {
     'Metric': ['Predicted Growth Score', 'Actual Growth Score', 'Prediction Difference'],
     'Value': [y_pred[0][0], actual_growth_score, prediction_diff]
     }
-    df = pd.DataFrame(data)
-    st.table(df)
+    df_pred = pd.DataFrame(data_pred)
+    st.table(df_pred)
 
     plot_historical_and_forecasted_growth(test_df, forecasted_values, n_forecast_steps,)
     
