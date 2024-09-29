@@ -4,8 +4,10 @@
 
 This project involves building a web-based application that predicts the growth score of a GitHub repository over a specified time period. This growth score is derived from metrics like stars, forks, pull requests, and open issues. The application utilizes a Recurrent Neural Network (RNN) with attention mechanism to make accurate predictions based on time-series data.
 
+# App link
+[App Link](https://ds-final-project-repo-growth-forecast.streamlit.app/)
 
-# File System description
+# Files & directories description
 - __src__: 
   -  `functions.py` has all the necessary functions that make the app work 
   -  `app.py` is the main app file
@@ -31,7 +33,3 @@ This project involves building a web-based application that predicts the growth 
 3. make sure to install all the packages in the requirement.txt app
 4. Generate a new Github Access Token and save the token localy under `~/.streamlit/secrets.toml` in the form of `GITHUB_TOKEN = 'you_access_token'` (you may need to create the `secrets.toml` file)
 5. run `python3 -m streamlit run ./src/app.py` this will open the app in the browser on http://localhost:8501/
-
-
-# App link
-[App Link](https://ds-final-project-repo-growth-forecast.streamlit.app/)

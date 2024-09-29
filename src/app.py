@@ -1,5 +1,6 @@
 import streamlit as st
-from functions import display_repo_data, get_repo_data  # Assuming these functions return and display data
+from functions import get_repo_data
+from functions import display_repo_data
 
 st.set_page_config(layout="wide")
 
