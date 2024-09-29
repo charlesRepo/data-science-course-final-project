@@ -901,20 +901,12 @@ def display_repo_data(test_df, y_pred, forecasted_values, n_forecast_steps):
     last_rows_num_gs = df_num_gs_sorted.drop_duplicates(subset='repo_name', keep='last')
     actual_growth_score = last_rows_num_gs.iloc[0]['growth_score']
     # st.write('Growth Score: ', last_rows_num_gs.iloc[0]['growth_score'])
-    st.markdown(f"<h3><b>Growth Score:</b> {last_rows_num_gs.iloc[0]['growth_score']}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3><b>Growth Score:</b> {last_rows_num_gs.iloc[0]['growth_score']:.2f}</h3>", unsafe_allow_html=True)
     
-    st.markdown(
-    f"""
-    <div style='word-wrap: break-word; white-space: normal; font-size: 16px; padding-bottom: 30px'>
-        The growth score is a metric that quantifies the development and popularity of a GitHub repository over time, considering factors like stars, forks, pull requests, and issues.
-    </div>
-    """,
-    unsafe_allow_html=True
-    )
-    
+    st.info("The growth score is a metric that quantifies the development and popularity of a GitHub repository over time, considering factors like stars, forks, pull requests, and issues.")
+
 
     prediction_diff = y_pred[0][0] - actual_growth_score
-    
     data = {
     'Metric': ['Predicted Growth Score', 'Actual Growth Score', 'Prediction Difference'],
     'Value': [y_pred[0][0], actual_growth_score, prediction_diff]
