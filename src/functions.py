@@ -822,15 +822,15 @@ def get_repo_data(url):
     test_df['release_date'] = pd.to_datetime(test_df['release_date'])
     latest_release_year = test_df['release_date'].max().year
 
-    if (test_df['num_releases'] <= 12).any() or test_df.empty:
-        st.warning('Please provide a link to a repository which has more than 12 releases.')
+    if (test_df['num_releases'] <= 15).any() or test_df.empty:
+        st.warning('Please provide a link to a repository that has more than 15 releases.')
         return None, None, None, None 
     elif latest_release_year < 2024 :
         st.warning('Please provide a link to a repository with up-to-date releases later thatn 2023.')
         return None, None, None, None 
     else:
-        n_lag_features = 4
-        n_timesteps = 3
+        n_lag_features = 5
+        n_timesteps = 5
         n_forecast_steps = 12 
 
         test_df = test_df.sort_values(by='release_date', ascending=True).reset_index(drop=True)
