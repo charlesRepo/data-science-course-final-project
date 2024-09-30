@@ -413,7 +413,6 @@ def scale_final_data(X_train=None, X_test=None, X=None, scaler_path='../models/f
         X_scaled = scaler.transform(X)
         
         return X_scaled
-    
     else:
         raise ValueError("Either provide X_train and X_test for training or X for manual testing.")
     
